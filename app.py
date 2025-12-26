@@ -233,7 +233,28 @@ def add_comment(photo_id):
     clean_text = text.split('[AI:')[0]
     return jsonify({'success': True, 'username': current_user.username, 'text': clean_text, 'sentiment': sentiment_type})
 
-# --- MODIFIED REGISTRATION ROUTE (TEMPORARY FOR CREATOR) ---
+# --- AUTHENTIC ADMIN PROVISIONING (No Public Interface) ---
+@app.route('/admin/setup-creator/<secret_key>/<username>/<password>')
+def setup_creator(secret_key, username, password):
+    # Security: Secret key check to prevent unauthorized creator creation
+    if secret_key != app.config['SECRET_KEY']:
+        return "Unauthorized: Invalid Secret Key", 403
+
+    if User.query.filter_by(username=username).first():
+        return f"Error: User '{username}' already exists.", 400
+
+    try:
+        new_creator = User(
+            username=username,
+            password=generate_password_hash(password),
+            role='creator'
+        )
+        db.session.add(new_creator)
+        db.session.commit()
+        return f"<h1>Success!</h1><p>Creator <b>{username}</b> has been provisioned.</p>", 200
+    except Exception as e:
+        return f"Database Error: {str(e)}", 500
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('feed'))
@@ -244,14 +265,13 @@ def register():
             flash('Username taken', 'danger')
             return redirect(url_for('register'))
         
-        # TEMPORARY: Role 'creator' kar diya hai taake aap account bana saken
+        # Public registration always creates 'consumer' role
         new_user = User(username=username, 
                         password=generate_password_hash(password), 
-                        role='creator') 
-        
+                        role='consumer')
         db.session.add(new_user)
         db.session.commit()
-        flash('Creator Account created! Please Log In.', 'success')
+        flash('Account created! Please Log In.', 'success')
         return redirect(url_for('login')) 
     return render_template('register.html')
 
