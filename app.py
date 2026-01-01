@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysupersecretkeyIsVeryLongAndSecure')
 
 # --- DATABASE CONFIGURATION (Azure PostgreSQL) ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URI')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('AZURE_POSTGRESQL_CONNECTIONSTRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- AZURE BLOB STORAGE CONFIGURATION ---
