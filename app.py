@@ -19,24 +19,37 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'mysupersecretkeyIsVeryLongAndSecure')
 
-# --- DATABASE CONFIGURATION (Azure PostgreSQL) ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('AZURE_POSTGRESQL_CONNECTIONSTRING')
+# --- DATABASE CONFIGURATION ---
+# Prefer explicit SQLALCHEMY_DATABASE_URI, then Azure var, otherwise fallback to sqlite in instance/
+db_uri = os.getenv('SQLALCHEMY_DATABASE_URI') or os.getenv('AZURE_POSTGRESQL_CONNECTIONSTRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if not db_uri:
+    # ensure instance folder exists (safe path for writable storage in many hosts)
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except Exception:
+        pass
+    db_path = os.path.join(app.instance_path, 'app.db')
+    db_uri = f'sqlite:///{db_path}'
+    print(f"Info: No DB URI found in env; falling back to SQLite at {db_path}")
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 
 # --- AZURE BLOB STORAGE CONFIGURATION ---
 AZURE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 AZURE_CONTAINER_NAME = os.getenv('AZURE_CONTAINER_NAME')
 
-# Azure Client Initialize karein
-try:
-    if AZURE_CONNECTION_STRING:
+# Azure Client Initialize (may be None if not configured)
+blob_service_client = None
+if AZURE_CONNECTION_STRING:
+    try:
         blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
-    else:
-        print("Warning: AZURE_STORAGE_CONNECTION_STRING not found in environment.")
-except Exception as e:
-    print(f"Azure Storage Connection Error: {e}")
+    except Exception as e:
+        print(f"Azure Storage Connection Error: {e}")
+else:
+    print("Warning: AZURE_STORAGE_CONNECTION_STRING not found in environment.")
 
 # Database aur Login Manager initialize karein
+# Initialize database extension
 db.init_app(app)
 
 # --- AUTO-CREATE TABLES ON STARTUP ---
@@ -147,6 +160,10 @@ def creator_dashboard():
         location = request.form.get('location')
         
         if file and title and file.filename != '':
+            # Ensure Azure blob client and container are configured before proceeding
+            if not blob_service_client or not AZURE_CONTAINER_NAME:
+                flash('Azure storage is not configured on the server. Uploads are disabled.', 'danger')
+                return render_template('dashboard.html')
             filename = secure_filename(file.filename)
             
             try:
