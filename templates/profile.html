@@ -7,7 +7,11 @@
         <div class="profile-header">
             <div class="profile-avatar-wrapper">
                 {% if user.avatar %}
-                    <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" class="profile-avatar object-fit-cover">
+                    {% if '://' in user.avatar %}
+                        <img src="{{ user.avatar }}" class="profile-avatar object-fit-cover">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='uploads/' + user.avatar) }}" class="profile-avatar object-fit-cover">
+                    {% endif %}
                 {% else %}
                     <i class="fas fa-user-circle text-muted" style="font-size: 150px;"></i>
                 {% endif %}

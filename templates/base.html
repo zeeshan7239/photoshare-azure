@@ -39,7 +39,11 @@
                         <a href="#" class="nav-link d-flex align-items-center p-0" data-bs-toggle="dropdown">
                             <div class="nav-avatar-container">
                                 {% if current_user.avatar %}
-                                    <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="nav-avatar object-fit-cover">
+                                    {% if '://' in current_user.avatar %}
+                                        <img src="{{ current_user.avatar }}" class="nav-avatar object-fit-cover">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" class="nav-avatar object-fit-cover">
+                                    {% endif %}
                                 {% else %}
                                     <i class="fas fa-user-circle" style="font-size: 1.6rem;"></i>
                                 {% endif %}

@@ -332,11 +332,54 @@ def login():
 @login_required
 def edit_profile():
     if request.method == 'POST':
+        # Update bio
         current_user.bio = request.form.get('bio')
+
+        # Handle avatar upload if provided
+        avatar_file = request.files.get('avatar')
+        if avatar_file and avatar_file.filename != '':
+            try:
+                avatar_filename = secure_filename(avatar_file.filename)
+                # create a unique filename per user
+                avatar_name = f"{current_user.id}_avatar_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{avatar_filename}"
+                local_path = os.path.join(LOCAL_UPLOAD_FOLDER, avatar_name)
+                # save processed image to local uploads
+                img = Image.open(avatar_file)
+                if img.mode != 'RGB': img = img.convert('RGB')
+                img.thumbnail((400, 400))
+                img.save(local_path, format='JPEG', optimize=True, quality=85)
+                # store filename (templates expect filenames for static/uploads)
+                current_user.avatar = avatar_name
+            except Exception as e:
+                flash(f"Avatar Upload Error: {e}", 'danger')
+
         db.session.commit()
         flash('Profile updated!', 'success')
         return redirect(url_for('profile', username=current_user.username))
     return render_template('edit_profile.html')
+
+
+@app.route('/remove_avatar')
+@login_required
+def remove_avatar():
+    try:
+        if current_user.avatar:
+            # if stored as a full URL, just clear
+            if current_user.avatar.startswith('http'):
+                current_user.avatar = None
+            else:
+                file_path = os.path.join(LOCAL_UPLOAD_FOLDER, current_user.avatar)
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception:
+                    pass
+                current_user.avatar = None
+            db.session.commit()
+            flash('Profile photo removed.', 'success')
+    except Exception as e:
+        flash(f'Error removing avatar: {e}', 'danger')
+    return redirect(url_for('edit_profile'))
 
 @app.route('/logout')
 @login_required

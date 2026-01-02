@@ -11,7 +11,11 @@
                 <div class="d-flex align-items-center gap-2">
                     <a href="{{ url_for('profile', username=photo.creator.username) }}" class="text-decoration-none">
                         {% if photo.creator.avatar %}
-                            <img src="{{ url_for('static', filename='uploads/' + photo.creator.avatar) }}" class="rounded-circle border" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% if '://' in photo.creator.avatar %}
+                                <img src="{{ photo.creator.avatar }}" class="rounded-circle border" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='uploads/' + photo.creator.avatar) }}" class="rounded-circle border" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% endif %}
                         {% else %}
                             <i class="fas fa-user-circle fa-2x text-muted"></i>
                         {% endif %}
