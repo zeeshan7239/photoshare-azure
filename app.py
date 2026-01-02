@@ -251,7 +251,6 @@ def add_comment(photo_id):
     return jsonify({'success': True, 'username': current_user.username, 'text': clean_text, 'sentiment': sentiment_type})
 
 # --- UPDATED REGISTRATION ROUTE (CLEANED UP) ---
-# --- UPDATED REGISTRATION ROUTE ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('feed'))
@@ -259,21 +258,21 @@ def register():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        # Dropdown se role hasil karein, default 'consumer' rakha hai safety ke liye
-        role = request.form.get('role', 'consumer') 
+        # --- PREVIOUS LOGIC COMMENTED OUT FOR ASSIGNMENT COMPLIANCE ---
+        # role = request.form.get('role', 'consumer') 
         
         if User.query.filter_by(username=username).first():
             flash('Username taken', 'danger')
             return redirect(url_for('register'))
         
-        # Naya user selected role ke saath create hoga
+        # Always default to 'consumer' for public registration
         new_user = User(username=username, 
                         password=generate_password_hash(password), 
-                        role=role) 
+                        role='consumer') 
         
         db.session.add(new_user)
         db.session.commit()
-        flash(f'Account created as {role.title()}! Please Log In.', 'success')
+        flash('Account created! Please Log In.', 'success')
         return redirect(url_for('login')) 
     return render_template('register.html')
 
