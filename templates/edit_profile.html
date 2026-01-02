@@ -23,7 +23,7 @@
                         <label class="text-primary fw-bold small cursor-pointer mb-0" for="avatarUpload">
                             Change Profile Photo
                         </label>
-                        <input type="file" name="avatar" id="avatarUpload" class="d-none" onchange="this.form.submit()"> <input type="file" name="avatar" id="avatarUpload" class="form-control form-control-sm mt-1">
+                        <input type="file" name="avatar" id="avatarUpload" class="form-control form-control-sm mt-1" accept="image/*">
                         
                         {% if current_user.avatar %}
                             <div class="mt-1">
