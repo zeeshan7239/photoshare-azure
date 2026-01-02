@@ -34,6 +34,29 @@ if not db_uri:
     print(f"Info: No DB URI found in env; falling back to SQLite at {db_path}")
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 
+# -- Helpful startup logging: print which DB URI is being used (mask credentials)
+def _mask_db_uri(uri: str) -> str:
+    try:
+        if uri.startswith('sqlite'):
+            return uri
+        # split scheme://userinfo@host/... ; mask password if present
+        parts = uri.split('://', 1)
+        scheme = parts[0]
+        rest = parts[1]
+        if '@' in rest:
+            userinfo, hostpath = rest.split('@', 1)
+            if ':' in userinfo:
+                user, pwd = userinfo.split(':', 1)
+                userinfo_masked = f"{user}:***"
+            else:
+                userinfo_masked = userinfo
+            return f"{scheme}://{userinfo_masked}@{hostpath}"
+        return uri
+    except Exception:
+        return uri
+
+print(f"Using database: {_mask_db_uri(db_uri)}")
+
 # --- AZURE BLOB STORAGE CONFIGURATION ---
 AZURE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 AZURE_CONTAINER_NAME = os.getenv('AZURE_CONTAINER_NAME')
