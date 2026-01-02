@@ -327,7 +327,7 @@ def login():
                 else:
                     return redirect(url_for('feed'))
             else:
-                flash(f'Incorrect Role! Registered as {user.role.title()}.', 'warning')
+                flash(f'Incorrect Role! Login as {user.role.title()}.', 'warning')
         else:
             flash('Invalid credentials', 'danger')
     return render_template('login.html')
