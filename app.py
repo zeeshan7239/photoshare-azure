@@ -38,6 +38,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 AZURE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 AZURE_CONTAINER_NAME = os.getenv('AZURE_CONTAINER_NAME')
 
+# Local uploads fallback (set LOCAL_UPLOADS=0 to disable)
+LOCAL_UPLOADS = os.getenv('LOCAL_UPLOADS', '1').lower() in ('1', 'true', 'yes')
+LOCAL_UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+try:
+    os.makedirs(LOCAL_UPLOAD_FOLDER, exist_ok=True)
+except Exception:
+    pass
+
 # Azure Client Initialize (may be None if not configured)
 blob_service_client = None
 if AZURE_CONNECTION_STRING:
@@ -160,40 +168,42 @@ def creator_dashboard():
         location = request.form.get('location')
         
         if file and title and file.filename != '':
-            # Ensure Azure blob client and container are configured before proceeding
-            if not blob_service_client or not AZURE_CONTAINER_NAME:
-                flash('Azure storage is not configured on the server. Uploads are disabled.', 'danger')
-                return render_template('dashboard.html')
             filename = secure_filename(file.filename)
-            
             try:
                 img = Image.open(file)
                 if img.mode != 'RGB': img = img.convert('RGB')
-                
+
                 auto_tags = analyze_image(img)
                 img.thumbnail((1080, 1080))
-                
-                in_mem_file = io.BytesIO()
-                img.save(in_mem_file, format='JPEG', optimize=True, quality=85)
-                in_mem_file.seek(0)
-                
-                blob_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
-                blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
-                blob_client.upload_blob(in_mem_file, overwrite=True)
-                
-                file_url = blob_client.url
-                
+
+                # Prefer Azure if configured, otherwise use local static/uploads when enabled
+                if blob_service_client and AZURE_CONTAINER_NAME:
+                    in_mem_file = io.BytesIO()
+                    img.save(in_mem_file, format='JPEG', optimize=True, quality=85)
+                    in_mem_file.seek(0)
+
+                    blob_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                    blob_client = blob_service_client.get_blob_client(container=AZURE_CONTAINER_NAME, blob=blob_name)
+                    blob_client.upload_blob(in_mem_file, overwrite=True)
+                    file_url = blob_client.url
+                elif LOCAL_UPLOADS:
+                    blob_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                    local_path = os.path.join(LOCAL_UPLOAD_FOLDER, blob_name)
+                    img.save(local_path, format='JPEG', optimize=True, quality=85)
+                    file_url = url_for('static', filename=f'uploads/{blob_name}', _external=True)
+                else:
+                    flash('Azure storage is not configured on the server. Uploads are disabled.', 'danger')
+                    return render_template('dashboard.html')
+
                 new_photo = Photo(filename=file_url, title=title, caption=caption, 
                                   location=location, people_present=people, 
                                   auto_tags=auto_tags, user_id=current_user.id)
-                                  
                 db.session.add(new_photo)
                 db.session.commit()
-                flash('Photo Uploaded to Azure successfully!', 'success')
+                flash('Photo Uploaded successfully!', 'success')
                 return redirect(url_for('profile', username=current_user.username))
-                
             except Exception as e:
-                flash(f"Azure Upload Error: {str(e)}", 'danger')
+                flash(f"Upload Error: {str(e)}", 'danger')
                 
     return render_template('dashboard.html')
 
